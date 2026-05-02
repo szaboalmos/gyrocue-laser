@@ -1,0 +1,68 @@
+name: Build macOS DMG
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pyobjc PySide6 pyinstaller
+
+      - name: Build .app with PyInstaller
+        run: |
+          python -m PyInstaller \
+            --name "GYROCUELaser" \
+            --windowed \
+            --onedir \
+            --osx-bundle-identifier "com.gyrocue.laser" \
+            --noconfirm \
+            --clean \
+            --hidden-import "PySide6.QtWidgets" \
+            --hidden-import "PySide6.QtGui" \
+            --hidden-import "PySide6.QtCore" \
+            --add-data "logo_panel.png:." \
+            laser_mac.py
+
+      - name: Configure Info.plist
+        run: |
+          PLIST="dist/GYROCUELaser.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSHighResolutionCapable bool true" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 13.0" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 13.0" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSAppleEventsUsageDescription string 'GYROCUE Laser uses this to track the mouse cursor.'" "$PLIST" 2>/dev/null || true
+
+      - name: Build DMG
+        run: |
+          DMG_NAME="GYROCUELaser_v6.0.dmg"
+          DMG_TMP="dist/dmg_tmp"
+          mkdir -p "$DMG_TMP"
+          cp -R "dist/GYROCUELaser.app" "$DMG_TMP/"
+          ln -s /Applications "$DMG_TMP/Applications"
+          hdiutil create \
+            -volname "GYROCUELaser" \
+            -srcfolder "$DMG_TMP" \
+            -ov \
+            -format UDZO \
+            "dist/$DMG_NAME"
+          echo "DMG_PATH=dist/$DMG_NAME" >> $GITHUB_ENV
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GYROCUELaser-macOS
+          path: dist/GYROCUELaser_v6.0.dmg
+          retention-days: 30
