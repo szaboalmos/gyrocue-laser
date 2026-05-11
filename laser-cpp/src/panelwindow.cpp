@@ -285,9 +285,6 @@ PanelWindow::PanelWindow(QWidget *parent)
     auto *footL = new QHBoxLayout(footW);
     footL->setContentsMargins(16, 10, 16, 10);
 
-    auto *infoLbl = new QLabel("ⓘ  Hold F18 to show laser.");
-    infoLbl->setStyleSheet(QString("color: %1; font-size: 8pt; background: %2;").arg(FG2, BG));
-    footL->addWidget(infoLbl);
     footL->addStretch();
 
     auto *quitBtn = new QPushButton("✕  Quit");

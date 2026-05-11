@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QIcon>
 #include <QPixmap>
+#include <QMessageBox>
 
 #include "lasercontroller.h"
 #include "overlaywindow.h"
@@ -15,6 +16,18 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
     // Enable HiDPI on Windows
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
+    // Single-instance guard via named mutex
+    HANDLE hMutex = CreateMutexW(nullptr, TRUE, L"GYROCUELaser_SingleInstance");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        // Already running — bring existing window to front and exit
+        HWND hw = FindWindowW(nullptr, L"GYROCUE Laser");
+        if (hw) {
+            ShowWindow(hw, SW_RESTORE);
+            SetForegroundWindow(hw);
+        }
+        return 0;
+    }
 #endif
 
     QApplication app(argc, argv);

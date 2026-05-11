@@ -70,6 +70,8 @@ private:
     QWidget* makeSectionHeader(const QString &text);
     void     updateSegButtons();
 
+    void keyPressEvent(QKeyEvent *e) override;
+
     LaserController *m_ctrl;
 
     ColorDot    *m_colorDot;

@@ -126,9 +126,23 @@ void OverlayWindow::hideCursor()
 {
     if (m_cursorHidden) return;
 #ifdef Q_OS_WIN
-    while (ShowCursor(FALSE) >= 0) {}
+    // Create a fully invisible cursor and apply to all system cursor slots
+    BYTE andMask[128], xorMask[128];
+    memset(andMask, 0xFF, sizeof(andMask));
+    memset(xorMask, 0x00, sizeof(xorMask));
+    HCURSOR hInvis = CreateCursor(NULL, 0, 0, 32, 32, andMask, xorMask);
+    if (hInvis) {
+        static const DWORD ids[] = {
+            32512,32513,32514,32515,32642,32643,32644,
+            32645,32646,32648,32649,32650,32651
+        };
+        for (DWORD id : ids) {
+            HCURSOR cp = (HCURSOR)CopyImage(hInvis, IMAGE_CURSOR, 0, 0, 0);
+            if (cp) SetSystemCursor(cp, id);
+        }
+        DestroyCursor(hInvis);
+    }
 #else
-    // macOS: hide via CGDisplayHideCursor
     CGDisplayHideCursor(kCGDirectMainDisplay);
 #endif
     m_cursorHidden = true;
@@ -138,7 +152,8 @@ void OverlayWindow::showCursor()
 {
     if (!m_cursorHidden) return;
 #ifdef Q_OS_WIN
-    while (ShowCursor(TRUE) < 0) {}
+    // Restore all system cursors to Windows defaults
+    SystemParametersInfo(SPI_SETCURSORS, 0, NULL, 0);
 #else
     CGDisplayShowCursor(kCGDirectMainDisplay);
 #endif
