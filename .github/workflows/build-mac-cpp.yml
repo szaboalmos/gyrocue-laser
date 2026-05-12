@@ -14,21 +14,50 @@ jobs:
     permissions:
       contents: write
 
+    env:
+      QT_VERSION: 6.7.3
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Qt6 (Homebrew)
-        run: |
-          brew update
-          brew install qt
+      - name: Install Qt6 (universal, via aqtinstall)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          cache: true
 
-      - name: Build .app + DMG
+      - name: Configure (universal arm64 + x86_64)
         working-directory: laser-cpp
-        run: bash build_mac.sh
+        run: |
+          cp -f ../logo_panel.png resources/logo_panel.png 2>/dev/null || true
+          rm -rf build
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET}
 
-      - name: Show DMG
-        run: ls -lah laser-cpp/build/GYROCUELaser_v6.0.dmg
+      - name: Build
+        working-directory: laser-cpp
+        run: cmake --build build --config Release -j
+
+      - name: Verify universal binary
+        working-directory: laser-cpp
+        run: |
+          BIN="build/GYROCUELaser.app/Contents/MacOS/GYROCUELaser"
+          file "$BIN"
+          lipo -archs "$BIN"
+
+      - name: macdeployqt + DMG
+        working-directory: laser-cpp
+        run: |
+          macdeployqt build/GYROCUELaser.app -dmg
+          mv build/GYROCUELaser.dmg build/GYROCUELaser_v6.0.dmg
+          ls -lah build/GYROCUELaser_v6.0.dmg
 
       - name: Upload DMG to v6.0 release (replace existing)
         env:
@@ -42,6 +71,6 @@ jobs:
       - name: Upload artifact (diagnostic)
         uses: actions/upload-artifact@v4
         with:
-          name: GYROCUELaser-macOS-cpp
+          name: GYROCUELaser-macOS-cpp-universal
           path: laser-cpp/build/GYROCUELaser_v6.0.dmg
           retention-days: 30
