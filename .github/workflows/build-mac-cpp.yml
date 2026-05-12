@@ -1,0 +1,47 @@
+name: Build macOS DMG (C++)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - 'laser-cpp/**'
+      - '.github/workflows/build-mac-cpp.yml'
+
+jobs:
+  build-mac-cpp:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt6 (Homebrew)
+        run: |
+          brew update
+          brew install qt
+
+      - name: Build .app + DMG
+        working-directory: laser-cpp
+        run: bash build_mac.sh
+
+      - name: Show DMG
+        run: ls -lah laser-cpp/build/GYROCUELaser_v6.0.dmg
+
+      - name: Upload DMG to v6.0 release (replace existing)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v6.0 \
+            laser-cpp/build/GYROCUELaser_v6.0.dmg \
+            --clobber \
+            -R ${{ github.repository }}
+
+      - name: Upload artifact (diagnostic)
+        uses: actions/upload-artifact@v4
+        with:
+          name: GYROCUELaser-macOS-cpp
+          path: laser-cpp/build/GYROCUELaser_v6.0.dmg
+          retention-days: 30
